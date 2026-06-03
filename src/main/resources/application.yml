@@ -1,0 +1,88 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+      force-request: true
+      force-response: true
+
+spring:
+  application:
+    name: campus-doc-ai
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 220MB
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_doc_assistant?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai
+    username: root
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+
+jwt:
+  secret: ${JWT_SECRET:please-change-me-in-application-local-yml}
+  expire-seconds: 7200
+
+file:
+  upload-path: uploads/
+
+document:
+  max-file-size-mb: 20
+  max-files-per-request: 10
+  chunk-size: 600
+  chunk-overlap: 100
+  chunk-step: 500
+
+ai:
+  api-key: ${AI_API_KEY:}
+  chat:
+    # 勿用 MaaS 工作空间域名：其证书 SAN 仅为 *.aliyuncs.com，无法匹配 ws-xxx.cn-beijing.maas.aliyuncs.com
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen-plus
+    system-prompt: |
+      你是校园制度助手。
+      必须基于提供的文档回答。
+      禁止编造。
+      每个结论必须引用文档来源。
+  embedding:
+    base-url: https://dashscope.aliyuncs.com/api/v1
+    model: text-embedding-v3
+    dimension: 1024
+  reject-score-threshold: 0.6
+  hotqa-similarity-threshold: 0.95
+  hotqa-ttl-hours: 24
+
+search:
+  default-top-k: 5
+
+redis:
+  vector-index-name: campus:vector:chunks
+  # 升级索引 schema（含 userId 等 metadata 字段）时递增，启动时会自动重建向量索引
+  vector-index-schema-version: 3
+
+campus:
+  cors:
+    allowed-origins: "*"
+  debug:
+    # 联调时 true：控制台打印每个请求的完整 Header、JWT、Redis token 比对；上线请改为 false
+    request-log: true
+
+logging:
+  level:
+    com.campusdoc.security: INFO

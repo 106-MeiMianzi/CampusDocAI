@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusdoc.user.mapper.UserMapper">
+
+    <resultMap id="UserMap" type="com.campusdoc.user.entity.UserEntity">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="role" column="role"/>
+        <result property="displayName" column="display_name"/>
+        <result property="avatarUrl" column="avatar_url"/>
+        <result property="college" column="college"/>
+        <result property="grade" column="grade"/>
+        <result property="major" column="major"/>
+        <result property="className" column="class_name"/>
+        <result property="phone" column="phone"/>
+        <result property="email" column="email"/>
+        <result property="jobTitle" column="job_title"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="UserColumns">
+        id, username, password, role, display_name, avatar_url, college, grade, major,
+        class_name, phone, email, job_title, created_at
+    </sql>
+
+    <select id="findByUsername" resultMap="UserMap">
+        SELECT <include refid="UserColumns"/> FROM `user` WHERE username = #{username}
+    </select>
+
+    <select id="findById" resultMap="UserMap">
+        SELECT <include refid="UserColumns"/> FROM `user` WHERE id = #{id}
+    </select>
+
+    <select id="countByUsername" resultType="int">
+        SELECT COUNT(1) FROM `user` WHERE username = #{username}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `user` (username, password, role, display_name, avatar_url, college, grade, major,
+                            class_name, phone, email, job_title)
+        VALUES (#{username}, #{password},
+                #{role, jdbcType=VARCHAR, typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+                #{displayName}, #{avatarUrl}, #{college}, #{grade},
+                #{major}, #{className}, #{phone}, #{email}, #{jobTitle})
+    </insert>
+
+    <update id="updateAvatar">
+        UPDATE `user` SET avatar_url = #{avatarUrl} WHERE id = #{id}
+    </update>
+
+    <update id="updateProfile">
+        UPDATE `user`
+        SET role = #{role, jdbcType=VARCHAR, typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            display_name = #{displayName},
+            college = #{college},
+            grade = #{grade},
+            major = #{major},
+            class_name = #{className},
+            phone = #{phone},
+            email = #{email},
+            job_title = #{jobTitle}
+        WHERE id = #{id}
+    </update>
+</mapper>

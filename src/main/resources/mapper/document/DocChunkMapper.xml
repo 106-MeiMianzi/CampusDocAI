@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusdoc.document.mapper.DocChunkMapper">
+
+    <resultMap id="ChunkMap" type="com.campusdoc.document.entity.DocChunkEntity">
+        <id property="id" column="id"/>
+        <result property="documentId" column="document_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="chunkIndex" column="chunk_index"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="batchInsert">
+        INSERT INTO doc_chunk (document_id, user_id, chunk_index, content)
+        VALUES
+        <foreach collection="chunks" item="c" separator=",">
+            (#{c.documentId}, #{c.userId}, #{c.chunkIndex}, #{c.content})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByDocumentId">
+        DELETE FROM doc_chunk WHERE document_id = #{documentId}
+    </delete>
+
+    <select id="findByDocumentId" resultMap="ChunkMap">
+        SELECT * FROM doc_chunk WHERE document_id = #{documentId} ORDER BY chunk_index
+    </select>
+
+    <select id="keywordSearch" resultMap="ChunkMap">
+        SELECT c.* FROM doc_chunk c
+        INNER JOIN document d ON d.id = c.document_id
+        LEFT JOIN `user` u ON u.id = d.user_id
+        WHERE (d.user_id = #{userId} OR u.role = 'TEACHER')
+        <if test="documentId != null">
+            AND d.id = #{documentId}
+        </if>
+          AND (
+            MATCH(c.content) AGAINST(#{keyword} IN NATURAL LANGUAGE MODE)
+            OR c.content LIKE CONCAT('%', #{keyword}, '%')
+          )
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByIds" resultMap="ChunkMap">
+        SELECT * FROM doc_chunk WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="listForVectorIndex" resultType="com.campusdoc.document.entity.DocChunkVectorRow">
+        SELECT c.id,
+               c.document_id AS documentId,
+               c.user_id     AS userId,
+               c.chunk_index AS chunkIndex,
+               c.content,
+               d.file_name   AS fileName,
+               u.role        AS uploaderRole
+        FROM doc_chunk c
+                 INNER JOIN document d ON d.id = c.document_id
+                 INNER JOIN `user` u ON u.id = d.user_id
+        WHERE d.status = 'SUCCESS'
+        ORDER BY c.document_id, c.chunk_index
+    </select>
+</mapper>

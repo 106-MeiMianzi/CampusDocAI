@@ -1,0 +1,1 @@
+-- 预置用户由 AdminUserInitializer 在启动时写入（密码 123456）
