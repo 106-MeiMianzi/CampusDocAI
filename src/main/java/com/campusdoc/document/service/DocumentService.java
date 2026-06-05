@@ -8,6 +8,7 @@ import com.campusdoc.config.DocumentProperties;
 import com.campusdoc.document.dto.DocumentDetailResponse;
 import com.campusdoc.document.dto.DocumentListItemResponse;
 import com.campusdoc.document.dto.DocumentUploadItemResponse;
+import com.campusdoc.document.dto.StoredDocumentFile;
 import com.campusdoc.document.entity.DocChunkEntity;
 import com.campusdoc.document.entity.DocumentEntity;
 import com.campusdoc.document.entity.DocumentStatus;
@@ -16,20 +17,29 @@ import com.campusdoc.document.mapper.DocumentMapper;
 import com.campusdoc.user.entity.UserEntity;
 import com.campusdoc.user.entity.UserRole;
 import com.campusdoc.user.service.UserService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
 public class DocumentService {
 
     private static final Set<String> ALLOWED_EXT = Set.of("pdf", "docx", "xlsx");
+    private static final Map<String, MediaType> EXT_TO_MEDIA_TYPE = Map.of(
+            "pdf", MediaType.APPLICATION_PDF,
+            "docx", MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            "xlsx", MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    );
 
     private final DocumentMapper documentMapper;
     private final DocChunkMapper docChunkMapper;
@@ -76,7 +86,7 @@ public class DocumentService {
                 throw new BusinessException(ErrorCode.UNSUPPORTED_FILE_TYPE);
             }
             try {
-                var path = fileStorageService.save(userId, file, ext);
+                Path path = fileStorageService.save(userId, file, ext);
                 DocumentEntity entity = new DocumentEntity();
                 entity.setUserId(userId);
                 entity.setFileName(original != null ? original : "unknown." + ext);
@@ -109,6 +119,12 @@ public class DocumentService {
         return new DocumentDetailResponse(
                 doc.getId(), doc.getFileName(), doc.getStatus(), doc.getFileSize(),
                 doc.getErrorMsg(), doc.getCreatedAt(), doc.getUpdatedAt());
+    }
+
+    public StoredDocumentFile openFile(Long userId, Long id) {
+        DocumentEntity doc = requireAccessible(userId, id);
+        Resource resource = fileStorageService.loadAsResource(doc.getStoragePath());
+        return new StoredDocumentFile(resource, mediaTypeFor(doc.getFileName()), doc.getFileName());
     }
 
     public void reparse(Long userId, Long id) {
@@ -162,5 +178,9 @@ public class DocumentService {
             return "";
         }
         return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private MediaType mediaTypeFor(String fileName) {
+        return EXT_TO_MEDIA_TYPE.getOrDefault(extension(fileName), MediaType.APPLICATION_OCTET_STREAM);
     }
 }

@@ -18,7 +18,13 @@
     </insert>
 
     <select id="listByConversationId" resultMap="MessageMap">
-        SELECT * FROM chat_message WHERE conversation_id = #{conversationId} ORDER BY created_at ASC
+        SELECT * FROM (
+            SELECT * FROM chat_message
+            WHERE conversation_id = #{conversationId}
+            ORDER BY created_at DESC
+            LIMIT 100
+        ) recent_messages
+        ORDER BY created_at ASC
     </select>
 
     <delete id="deleteByConversationId">

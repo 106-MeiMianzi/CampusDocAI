@@ -73,9 +73,9 @@ public class ChatService {
 
     @Transactional
     public AskResponse ask(Long userId, AskRequest request) {
-        AskResponse cached = hotQaCacheService.getCached(request.getQuestion());
-        if (cached != null) {
-            return cached;
+        AskResponse exactCached = hotQaCacheService.getExact(request.getQuestion());
+        if (exactCached != null) {
+            return exactCached;
         }
 
         Long conversationId = request.getConversationId();
@@ -85,6 +85,7 @@ public class ChatService {
             created.setTitle(trimTitle(request.getQuestion()));
             conversationMapper.insert(created);
             conversationId = created.getId();
+            conversationService.evictListCache(userId);
         } else {
             conversationService.requireOwned(userId, conversationId);
         }
@@ -96,6 +97,12 @@ public class ChatService {
         }
 
         float[] queryVector = embeddingClient.embed(request.getQuestion());
+
+        AskResponse similarCached = hotQaCacheService.findSimilar(queryVector);
+        if (similarCached != null) {
+            return similarCached;
+        }
+
         List<VectorStoreService.ScoredChunk> hits;
         if (documentId != null) {
             hits = documentScopedSearchService.search(
@@ -135,7 +142,7 @@ public class ChatService {
         String answer = chatClient.chat(messages);
         AskResponse response = new AskResponse(conversationId, answer, citations, null);
         persistMessages(conversationId, request.getQuestion(), response);
-        hotQaCacheService.put(request.getQuestion(), response);
+        hotQaCacheService.put(request.getQuestion(), response, queryVector);
         return response;
     }
 
@@ -149,9 +156,10 @@ public class ChatService {
             memory.add(Map.of("role", "user", "content", question));
             memory.add(Map.of("role", "assistant", "content", response.getAnswer()));
             if (memory.size() > 20) {
-                memory = memory.subList(memory.size() - 20, memory.size());
+                memory = new ArrayList<>(memory.subList(memory.size() - 20, memory.size()));
             }
             chatMemoryService.save(conversationId, memory);
+            conversationService.evictListCacheByConversationId(conversationId);
         } catch (JsonProcessingException e) {
             log.warn("Failed to persist chat messages for conversation {}: {}", conversationId, e.getMessage());
         }

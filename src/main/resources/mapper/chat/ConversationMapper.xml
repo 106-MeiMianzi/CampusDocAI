@@ -14,12 +14,19 @@
         INSERT INTO conversation (user_id, title) VALUES (#{userId}, #{title})
     </insert>
 
+    <select id="findById" resultMap="ConversationMap">
+        SELECT * FROM conversation WHERE id = #{id}
+    </select>
+
     <select id="findByIdAndUserId" resultMap="ConversationMap">
         SELECT * FROM conversation WHERE id = #{id} AND user_id = #{userId}
     </select>
 
     <select id="listByUserId" resultMap="ConversationMap">
-        SELECT * FROM conversation WHERE user_id = #{userId} ORDER BY created_at DESC
+        SELECT * FROM conversation
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 50
     </select>
 
     <delete id="deleteByIdAndUserId">

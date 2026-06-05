@@ -11,6 +11,8 @@ public interface ConversationMapper {
 
     int insert(ConversationEntity conversation);
 
+    ConversationEntity findById(@Param("id") Long id);
+
     ConversationEntity findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     List<ConversationEntity> listByUserId(@Param("userId") Long userId);

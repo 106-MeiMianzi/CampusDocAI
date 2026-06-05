@@ -46,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Long userId = jwtTokenProvider.getUserId(token);
                 String stored = authTokenService.getStoredToken(userId);
-                boolean active = authTokenService.isTokenActive(userId, token);
+                boolean active = stored != null && stored.equals(token);
                 if (!active) {
                     logAuth(request, authHeader, token, userId, stored, false,
                             "Redis 中无有效 token 或与请求 token 不一致（可能已登出、重复登录覆盖了旧 token）");
