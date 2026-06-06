@@ -1,13 +1,18 @@
 package com.campusdoc.config;
 
+import com.campusdoc.document.service.DocumentPreviewTokenService;
+import com.campusdoc.security.DocumentPreviewTokenFilter;
 import com.campusdoc.security.JsonAuthenticationEntryPoint;
 import com.campusdoc.security.JwtAuthenticationFilter;
+import com.campusdoc.security.JwtTokenProvider;
+import com.campusdoc.user.service.AuthTokenService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,7 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
 public class SecurityConfig {
 
@@ -37,16 +42,30 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public DocumentPreviewTokenFilter documentPreviewTokenFilter(DocumentPreviewTokenService previewTokenService,
+                                                                 JwtTokenProvider jwtTokenProvider,
+                                                                 AuthTokenService authTokenService,
+                                                                 CampusDebugProperties campusDebugProperties) {
+        return new DocumentPreviewTokenFilter(
+                previewTokenService, jwtTokenProvider, authTokenService, campusDebugProperties);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   DocumentPreviewTokenFilter documentPreviewTokenFilter)
+            throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(c -> c.configurationSource(corsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(h -> h.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/user/avatar/image/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jsonAuthenticationEntryPoint))
+                // 二者均挂在 UsernamePasswordAuthenticationFilter 前；先注册 preview、再注册 JWT → 实际顺序 preview → JWT
+                .addFilterBefore(documentPreviewTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

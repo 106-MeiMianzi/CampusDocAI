@@ -48,6 +48,7 @@ document:
   chunk-size: 600
   chunk-overlap: 100
   chunk-step: 500
+  preview-token-ttl-minutes: 15
 
 ai:
   api-key: ${AI_API_KEY:}

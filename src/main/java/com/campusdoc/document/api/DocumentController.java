@@ -4,9 +4,11 @@ import com.campusdoc.common.ApiResponse;
 import com.campusdoc.common.PageResult;
 import com.campusdoc.document.dto.DocumentDetailResponse;
 import com.campusdoc.document.dto.DocumentListItemResponse;
+import com.campusdoc.document.dto.DocumentPreviewTokenResponse;
 import com.campusdoc.document.dto.DocumentUploadItemResponse;
 import com.campusdoc.document.dto.StoredDocumentFile;
 import com.campusdoc.document.entity.DocumentStatus;
+import com.campusdoc.document.service.DocumentPreviewTokenService;
 import com.campusdoc.document.service.DocumentService;
 import com.campusdoc.security.SecurityUtils;
 import org.springframework.core.io.Resource;
@@ -26,9 +28,12 @@ import java.util.Map;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final DocumentPreviewTokenService previewTokenService;
 
-    public DocumentController(DocumentService documentService) {
+    public DocumentController(DocumentService documentService,
+                              DocumentPreviewTokenService previewTokenService) {
         this.documentService = documentService;
+        this.previewTokenService = previewTokenService;
     }
 
     @PostMapping("/upload")
@@ -50,6 +55,14 @@ public class DocumentController {
         return ApiResponse.ok(documentService.detail(SecurityUtils.currentUserId(), id));
     }
 
+    @GetMapping("/{id}/preview-token")
+    public ApiResponse<DocumentPreviewTokenResponse> previewToken(@PathVariable Long id) {
+        Long userId = SecurityUtils.currentUserId();
+        documentService.requireAccessible(userId, id);
+        String token = previewTokenService.create(userId, id);
+        return ApiResponse.ok(new DocumentPreviewTokenResponse(token, previewTokenService.ttlSeconds()));
+    }
+
     @GetMapping("/{id}/file")
     public ResponseEntity<Resource> file(@PathVariable Long id) {
         StoredDocumentFile stored = documentService.openFile(SecurityUtils.currentUserId(), id);
@@ -58,6 +71,7 @@ public class DocumentController {
                 .build();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header("Content-Security-Policy", "frame-ancestors *")
                 .contentType(stored.mediaType())
                 .body(stored.resource());
     }

@@ -14,4 +14,6 @@ public class DocumentProperties {
     private int chunkSize = 600;
     private int chunkOverlap = 100;
     private int chunkStep = 500;
+    /** 文档 iframe 预览短效 token 有效期（分钟） */
+    private int previewTokenTtlMinutes = 15;
 }
